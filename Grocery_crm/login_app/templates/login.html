@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-container, .signup-container {
+            background: #ffffff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            text-align: center;
+            color: #333333;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #555555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button, .signup-button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+        }
+        button:hover, .signup-button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Form -->
+    <div class="login-container" id="login-container">
+        <h1>Login</h1>
+        <form id="login-form">
+            <div id="login-error-message" class="error"></div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+            
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+
+            <button type="submit">Login</button>
+        </form>
+
+        <!-- Signup Button -->
+        <button class="signup-button" onclick="showSignupForm()">Signup</button>
+    </div>
+
+    <!-- Signup Form -->
+    <div class="signup-container hidden" id="signup-container">
+        <h1>Signup</h1>
+        <form id="signup-form">
+            <div id="signup-error-message" class="error"></div>
+            <label for="signup-email">Email:</label>
+            <input type="email" id="signup-email" name="email" placeholder="Enter your email" required>
+
+            <label for="signup-userid">User ID:</label>
+            <input type="text" id="signup-userid" name="userid" placeholder="Enter your user ID" required>
+
+            <label for="signup-name">Name:</label>
+            <input type="text" id="signup-name" name="name" placeholder="Enter your name" required>
+
+            <label for="signup-password">Password:</label>
+            <input type="password" id="signup-password" name="password" placeholder="Enter your password" required>
+
+            <label for="signup-role">Role:</label>
+            <input type="text" id="signup-role" name="role" placeholder="Enter your role" required>
+
+            <label for="signup-address">Address:</label>
+            <input type="text" id="signup-address" name="address" placeholder="Enter your address" required>
+
+            <button type="submit">Submit</button>
+        </form>
+        <button class="signup-button" onclick="hideSignupForm()">Back to Login</button>
+    </div>
+
+    <script>
+        // Show the signup form and hide the login form
+        function showSignupForm() {
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('signup-container').classList.remove('hidden');
+        }
+
+        // Hide the signup form and show the login form
+        function hideSignupForm() {
+            document.getElementById('signup-container').classList.add('hidden');
+            document.getElementById('login-container').classList.remove('hidden');
+        }
+
+        // Handle login form submission
+        document.getElementById('login-form').addEventListener('submit', async function (event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/login_user/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store the access token in localStorage
+                    localStorage.setItem('access_token', data.access);
+
+                    // Optionally store user info
+                    localStorage.setItem('userinfo', JSON.stringify(data.userinfo));
+
+                    alert('Login successful! Redirecting to the welcome page...');
+                    window.location.href = '/welcome/'; // Redirect to the welcome page
+                } else {
+                    document.getElementById('login-error-message').textContent = data.message || 'Login failed.';
+                }
+            } catch (error) {
+                document.getElementById('login-error-message').textContent = 'An error occurred. Please try again.';
+            }
+        });
+
+        // Handle signup form submission
+        async function submitSignupForm(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            const payload = {
+                email: document.getElementById('signup-email').value,
+                userid: document.getElementById('signup-userid').value,
+                name: document.getElementById('signup-name').value,
+                password: document.getElementById('signup-password').value,
+                role: document.getElementById('signup-role').value,
+                address: document.getElementById('signup-address').value,
+            };
+
+            try {
+                const response = await fetch('http://localhost:8000/api/user/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.ok) {
+                    alert('Signup successful!');
+                    hideSignupForm();
+                } else {
+                    const errorData = await response.json();
+                    document.getElementById('signup-error-message').textContent = errorData.message || 'Signup failed.';
+                }
+            } catch (error) {
+                document.getElementById('signup-error-message').textContent = 'An error occurred. Please try again.';
+            }
+        }
+
+        // Attach the signup form submission handler
+        document.getElementById('signup-form').addEventListener('submit', submitSignupForm);
+    </script>
+</body>
+</html>

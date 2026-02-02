@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex; /* Flex layout for sidebar and main content */
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 20px;
+            height: 100vh; /* Full height */
+            box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar h2 {
+            text-align: center;
+            color: #ffffff;
+        }
+        .sidebar input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        .sidebar ul li {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #0056b3;
+            color: #ffffff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .sidebar ul li:hover {
+            background-color: #003f8a;
+        }
+        .main-content {
+            flex: 1; /* Take remaining space */
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .chat-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .chat-input button {
+            padding: 10px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background-color: #0056b3;
+        }
+        .received {
+            text-align: left;
+            color: blue;
+        }
+        .sent {
+            text-align: right;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar for Chat -->
+    <div class="sidebar">
+        <h2>Chat</h2>
+        <input type="text" id="search-user" placeholder="Search user" oninput="searchUser()">
+        <ul id="user-list">
+            <!-- Dynamically populated user list -->
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            <h1>Welcome!</h1>
+            <p id="user-info">Loading user info...</p>
+            <a href="/sales/" class="link-box">Sales Data</a>
+        </div>
+
+        <!-- Chat Box -->
+        <div class="chat-box" id="chat-box"></div>
+        <div class="chat-input">
+            <input type="text" id="chat-message" placeholder="Type a message">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedUser = null;
+        let loggedInUser = null;
+        let lastMessageId = 0; // Track the ID of the last displayed message
+
+        // Function to fetch logged-in user's information
+        async function fetchLoggedInUser() {
+            const token = localStorage.getItem('access_token'); // Retrieve token from localStorage
+            if (!token) {
+                alert('You are not logged in! Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/api/userinfo/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Include token in Authorization header
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    loggedInUser = data.userid; // Assuming the API returns the logged-in user's userid
+                    document.getElementById('user-info').textContent = `Welcome, ${data.name} (${data.email})`;
+
+                    // Start polling for received messages
+                    setInterval(fetchReceivedMessages, 5000); // Poll every 5 seconds
+                } else {
+                    const errorData = await response.json();
+                    alert(`Failed to fetch user info: ${errorData.detail}`);
+                    window.location.href = '/'; // Redirect to login page
+                }
+            } catch (error) {
+                console.error('Error fetching logged-in user info:', error);
+                alert('An error occurred. Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+            }
+        }
+
+        // Function to fetch received messages
+        async function fetchReceivedMessages() {
+            const token = localStorage.getItem('access_token'); // Retrieve token from localStorage
+            if (!token) {
+                alert('You are not logged in! Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/api/received-messages/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Include token in Authorization header
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const chatBox = document.getElementById('chat-box');
+
+                    // Display only new messages for the selected user
+                    data.results.forEach(message => {
+                        if (message.id > lastMessageId && (message.from_user === selectedUser || message.to_user === selectedUser)) {
+                            if (message.from_user === loggedInUser) {
+                                // Sent message
+                                chatBox.innerHTML += `<p class="sent"><strong>You:</strong> ${message.message}</p>`;
+                            } else {
+                                // Received message
+                                chatBox.innerHTML += `<p class="received"><strong>${message.from_user}:</strong> ${message.message}</p>`;
+                            }
+                            lastMessageId = message.id; // Update the last displayed message ID
+                        }
+                    });
+
+                    // Scroll to the bottom of the chat box
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                } else {
+                    const errorData = await response.json();
+                    console.error(`Failed to fetch messages: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+            }
+        }
+
+        // Establish a WebSocket connection for received messages
+        const receivedMessagesSocket = new WebSocket('ws://localhost:8000/ws/received-messages/');
+
+        receivedMessagesSocket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            // Display the received message in the chat box
+            const chatBox = document.getElementById('chat-box');
+            if (data.to_user === selectedUser) {
+                chatBox.innerHTML += `<p class="received"><strong>${data.from_user}:</strong> ${data.message}</p>`;
+                chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+            }
+        };
+
+        receivedMessagesSocket.onclose = function() {
+            console.error('WebSocket for received messages closed unexpectedly');
+        };
+
+        // Function to fetch and display users based on search input
+        async function searchUser() {
+            const searchInput = document.getElementById('search-user').value;
+            const userList = document.getElementById('user-list');
+            const token = localStorage.getItem('access_token'); // Retrieve token from localStorage
+
+            if (!token) {
+                alert('You are not logged in! Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/top-users/?search=${searchInput}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Include token in Authorization header
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Clear the user list
+                    userList.innerHTML = '';
+
+                    // Populate the user list with usernames
+                    const users = data.searched_users || data.top_users;
+                    users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.textContent = user.name;
+                        li.onclick = () => selectUser(user.userid, user.name);
+                        userList.appendChild(li);
+                    });
+                } else {
+                    const errorData = await response.json();
+                    alert(`Failed to fetch users: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        }
+
+        // Function to fetch user status
+        async function fetchUserStatus() {
+            const userList = document.getElementById('user-list');
+            const token = localStorage.getItem('access_token'); // Retrieve token from localStorage
+
+            if (!token) {
+                alert('You are not logged in! Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/api/user-status/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Include token in Authorization header
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Clear the user list
+                    userList.innerHTML = '';
+
+                    // Populate the user list with usernames and online/offline status
+                    data.forEach(user => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${user.name}</span>
+                            <span style="margin-left: 10px;">
+                                <i class="status-icon" style="color: ${user.is_online ? 'green' : 'red'};">
+                                    ${user.is_online ? '●' : '●'}
+                                </i>
+                            </span>
+                        `;
+                        li.onclick = () => selectUser(user.userid, user.name);
+                        userList.appendChild(li);
+                    });
+                } else {
+                    const errorData = await response.json();
+                    alert(`Failed to fetch user status: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error fetching user status:', error);
+            }
+        }
+
+        // Function to select a user for chatting
+        function selectUser(userid, name) {
+            selectedUser = userid;
+            lastMessageId = 0; // Reset the last message ID
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = `<p>Chat with ${name}</p>`; // Clear the chat box and show the selected user
+            fetchReceivedMessages(); // Fetch messages for the selected user
+        }
+
+        // Function to send a message
+        async function sendMessage() {
+            const messageInput = document.getElementById('chat-message');
+            const message = messageInput.value;
+
+            if (!selectedUser) {
+                alert('Please select a user to chat with.');
+                return;
+            }
+
+            const token = localStorage.getItem('access_token'); // Retrieve token from localStorage
+            if (!token) {
+                alert('You are not logged in! Redirecting to login...');
+                window.location.href = '/'; // Redirect to login page
+                return;
+            }
+
+            const payload = {
+                from_user: loggedInUser, // Use the logged-in user's ID
+                to_user: selectedUser,
+                message: message,
+                session_id: "123e4567-e89b-12d3-a456-426614174000" // Replace with a valid session ID
+            };
+
+            try {
+                const response = await fetch('http://localhost:8000/api/message/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // Include token in Authorization header
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const chatBox = document.getElementById('chat-box');
+                    chatBox.innerHTML += `<p class="sent"><strong>You:</strong> ${message}</p>`;
+                    messageInput.value = '';
+
+                    // Scroll to the bottom of the chat box
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                } else {
+                    const errorData = await response.json();
+                    alert(`Failed to send message: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+
+        // Call fetchLoggedInUser on page load
+        fetchLoggedInUser();
+    </script>
+</body>
+</html>

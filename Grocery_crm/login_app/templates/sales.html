@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333333;
+        }
+        form {
+            margin-top: 20px;
+            text-align: center;
+        }
+        input[type="file"] {
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .metric-box {
+            flex: 1;
+            margin: 0 10px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .charts-row {
+            display: flex;
+            justify-content: space-between; /* Ensure charts are distributed evenly */
+            margin-top: 20px;
+            gap: 20px; /* Add spacing between charts */
+        }
+        .chart {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 48%; /* Ensure two charts fit side by side */
+        }
+        @media (max-width: 768px) {
+            .charts-row {
+                flex-direction: column; /* Stack charts vertically on smaller screens */
+            }
+            .chart {
+                width: 100%; /* Make charts take full width on smaller screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sales Dashboard</h1>
+        <form method="POST" enctype="multipart/form-data" action="/sales/">
+            {% csrf_token %}
+            <label for="file">Choose a sales data file (CSV):</label>
+            <input type="file" id="file" name="file" accept=".csv" required>
+            <button type="submit">Submit</button>
+        </form>
+        <div class="metrics">
+            <div class="metric-box">
+                <h2>Total Sales</h2>
+                <p>${{ total_sales|floatformat:2 }}</p>
+            </div>
+            <div class="metric-box">
+                <h2>Total Quantity Ordered</h2>
+                <p>{{ total_quantity_ordered }}</p>
+            </div>
+        </div>
+        <!-- Row 1: Product-wise Sales and Country-wise Sales -->
+        <div class="charts-row">
+            <div class="chart">
+                <h2>Product-wise Sales</h2>
+                {% if product_sales_chart_html %}
+                    {{ product_sales_chart_html|safe }}
+                {% endif %}
+            </div>
+            <div class="chart">
+                <h2>Country-wise Sales</h2>
+                {% if country_sales_chart_html %}
+                    {{ country_sales_chart_html|safe }}
+                {% endif %}
+            </div>
+        </div>
+        <!-- Row 2: State-wise Sales and Year-wise Sales -->
+        <div class="charts-row">
+            <div class="chart">
+                <h2>State-wise Sales (Filtered by Country)</h2>
+                {% if state_sales_chart_html %}
+                    {{ state_sales_chart_html|safe }}
+                {% endif %}
+            </div>
+            <div class="chart">
+                <h2>Year-wise Sales</h2>
+                {% if year_sales_chart_html %}
+                    {{ year_sales_chart_html|safe }}
+                {% endif %}
+            </div>
+        </div>
+        <!-- Row 3: Product Sales Analysis Year-wise -->
+        <div class="charts-row">
+            <div class="chart" style="width: 100%;"> <!-- Full-width chart -->
+                <h2>Product Sales Analysis Year-wise</h2>
+                {% if product_year_chart_html %}
+                    {{ product_year_chart_html|safe }}
+                {% endif %}
+            </div>
+        </div>
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
+    </div>
+</body>
+</html>
